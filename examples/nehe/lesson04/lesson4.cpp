@@ -40,11 +40,15 @@ void idle(void) {
 
 void display(void)                                      // Create The Display Function
 {
+
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT); // Clear Screen And Depth Buffer
     glLoadIdentity();                                   // Reset The Current Modelview Matrix
     glPushMatrix();
     glTranslatef(-1.5f, 0.0f, -6.0f);                   // Move Left 1.5 Units And Into The Screen 6.0
     glRotatef(rtri, 0.0f, 1.0f, 0.0f);                  // Rotate The Triangle On The Y axis
+    //re track the default normals
+    constexpr float default_normal_direction_alignment[4] = {0.f, 0.f, 1.f, 0.f};
+    glLightfv(GL_LIGHT0, GL_POSITION, default_normal_direction_alignment);
     glBegin(GL_TRIANGLES);                              // Drawing Using Triangles
     glColor3f(1.0f, 0.0f, 0.0f);                        // Set The Color To Red
     glVertex3f(0.0f, 1.0f, 0.0f);                       // Top
@@ -58,6 +62,8 @@ void display(void)                                      // Create The Display Fu
     glTranslatef(1.5f, 0.0f, -6.0f);                    // Move Right 1.5 Units And Into The Screen 6.0
     glRotatef(rquad, 1.0f, 0.0f, 0.0f);                 // Rotate The Quad On The X axis
     glColor3f(0.5f, 0.5f, 1.0f);                        // Set The Color To Blue One Time Only
+    //re track the default normals
+    glLightfv(GL_LIGHT0, GL_POSITION, default_normal_direction_alignment);
     glBegin(GL_QUADS);                                  // Draw A Quad
     glVertex3f(-1.0f, 1.0f, 0.0f);                      // Top Left
     glVertex3f(1.0f, 1.0f, 0.0f);                       // Top Right

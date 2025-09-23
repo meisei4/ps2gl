@@ -30,6 +30,7 @@ VU_FUNCTIONS(GeneralPVDiffQuad);
 VU_FUNCTIONS(SCEI);
 VU_FUNCTIONS(Fast);
 VU_FUNCTIONS(FastNoLights);
+VU_FUNCTIONS(ProperNoLightsPVColorTri);
 
 VU_FUNCTIONS(Indexed);
 }

@@ -74,6 +74,8 @@ static GLfloat l1_position[] = { -2, -1, 1, 0.0 };
 
 void init_lights(void)
 {
+    glEnable(GL_COLOR_MATERIAL);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
     GLfloat ambient[] = { 0.2, 0.2, 0.2, 1.0 };
 
     GLfloat l0_diffuse[] = { 1.0f, 1.0f, 1.0f, 0 };

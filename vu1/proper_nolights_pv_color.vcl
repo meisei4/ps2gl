@@ -1,0 +1,3 @@
+; copy of general_pv_diff_tri
+; pass through lights to get colors only...
+;this is not how to do this, bad idea

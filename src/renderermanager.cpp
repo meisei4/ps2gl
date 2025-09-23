@@ -68,6 +68,35 @@ CRendererManager::CRendererManager(CGLContext& context)
             "indexed"));
     }
 
+    // unlit renderer per vertex color
+    // TODO: make sure this actually is ordered in here to work with other examples
+    {
+        CRendererProps capabilities = {
+            PrimType : RendererProps::kTriangles,
+            Lighting : 0,
+            NumDirLights : RendererProps::k3DirLights,
+            NumPtLights  : 0,
+            Texture      : 1,
+            Specular     : 0,
+            PerVtxMaterial : RendererProps::kNoMaterial,
+            Clipping       : RendererProps::kNonClipped | RendererProps::kClipped,
+            CullFace     : 0,
+            TwoSidedLighting : 0,
+            ArrayAccess  : RendererProps::kLinear
+        };
+        RegisterDefaultRenderer(
+            new CLinearRenderer(
+                mVsmAddr(ProperNoLightsPVColorTri),
+                mVsmSize(ProperNoLightsPVColorTri),
+                capabilities,
+                no_reqs,       
+                4,      
+                3,
+                kInputStart,
+                kInputBufSize - kInputStart,
+                "proper no lights, pvc, tri")
+        );
+    }
     // fast, no lights renderer
     {
         CRendererProps capabilities = {
@@ -605,7 +634,6 @@ bool CRendererManager::UpdateNewRenderer()
             }
         }
     }
-
     RendererReqsHaveChanged = false;
 
     return rendererChanged;
@@ -621,7 +649,7 @@ void CRendererManager::MakeNewRendererCurrent()
 void CRendererManager::LoadRenderer(CVifSCDmaPacket& packet)
 {
     mAssert(CurrentRenderer != NULL);
-
+    //TODO: not being reached...
     mDebugPrint("Loading renderer: %s\n", CurrentRenderer->renderer->GetName());
 
     CurrentRenderer->renderer->Load();

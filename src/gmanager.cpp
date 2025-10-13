@@ -30,6 +30,7 @@ CVertArray::CVertArray()
     VerticesAreValid = NormalsAreValid = TexCoordsAreValid = ColorsAreValid = false;
     WordsPerVertex = WordsPerTexCoord = WordsPerColor = 0;
     WordsPerNormal                                    = 3; // not set by NormalPointer
+    ColorSrcType = kColor_Float;
 }
 
 /********************************************
@@ -150,6 +151,13 @@ void glColorPointer(GLint size, GLenum type,
         return;
     }
     if (type != GL_FLOAT) {
+        if (type == GL_UNSIGNED_BYTE) {
+            CVertArray& vertArray = pGLContext->GetGeomManager().GetVertArray();
+            vertArray.SetColors((void*)ptr);
+            vertArray.SetWordsPerColor(4);
+            vertArray.SetColorSrc(kColor_UByte);
+            return;
+        }
         mNotImplemented("type must be float");
         return;
     }
@@ -174,18 +182,101 @@ void glDrawArrays(GLenum mode, GLint first, GLsizei count)
 {
     GL_FUNC_DEBUG("%s\n", __FUNCTION__);
 
+    if (pGLContext->GetImmDrawContext().GetPolygonMode() == GL_LINE && mode == GL_TRIANGLES) {
+        GLushort maxIndex = (GLushort)(first + count - 1);
+        if (maxIndex <= 255) {
+            GLsizei triangleCount   = count / 3;
+            GLsizei lineIndexCount  = triangleCount * 6;
+            static uint8_t* indices_u8_scratch = NULL;
+            static int scratchCapacity = 0;
+            if (scratchCapacity < lineIndexCount) {
+                delete[] indices_u8_scratch;
+                indices_u8_scratch = new uint8_t[lineIndexCount];
+                scratchCapacity = (int)lineIndexCount;
+            }
+            uint8_t* p = indices_u8_scratch;
+            for (GLsizei i = 0; i + 2 < count; i += 3) {
+                uint8_t a = (uint8_t)(first + i + 0);
+                uint8_t b = (uint8_t)(first + i + 1);
+                uint8_t c = (uint8_t)(first + i + 2);
+                *p++ = a; *p++ = b;
+                *p++ = b; *p++ = c;
+                *p++ = c; *p++ = a;
+            }
+            CGeomManager& gmanager = pGLContext->GetGeomManager();
+            gmanager.IndexedArraysGeomStage(GL_TRIANGLES, (int)lineIndexCount, indices_u8_scratch, (int)(maxIndex + 1));
+            return;
+        }
+        mode = GL_LINES;
+    }
     CGeomManager& gmanager = pGLContext->GetGeomManager();
-    gmanager.DrawArrays(mode, first, count);
+    gmanager.LinearArraysGeomStage(mode, first, count);
 }
 
 /**
- * This is not implemented yet
+ * This is now being implemented/experimental
  */
 void glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* indices)
 {
     GL_FUNC_DEBUG("%s\n", __FUNCTION__);
 
-    mError("glDrawElements is a placeholder ATM and should not be called");
+    if (type != GL_UNSIGNED_SHORT) {
+        mNotImplemented("glDrawElements only supports GL_UNSIGNED_SHORT for now");
+        return;
+    }
+
+    const GLushort* indices_u16 = (const GLushort*)indices;
+    GLushort max = 0;
+
+    for (GLsizei i = 0; i < count; ++i) {
+        if (indices_u16[i] > max) max = indices_u16[i];
+    }
+
+    const int numVertices = (int)max + 1;
+
+    static GLushort* indices_u16_scratch = NULL;
+    static int scratch16Capacity = 0;
+    if (pGLContext->GetImmDrawContext().GetPolygonMode() == GL_LINE && mode == GL_TRIANGLES)
+    {
+        int triangleCount = count / 3;
+        int lineCount =  triangleCount * 6;
+        if (scratch16Capacity < lineCount) {
+            delete[] indices_u16_scratch;
+            indices_u16_scratch = new GLushort[lineCount];
+            scratch16Capacity = lineCount;
+        }
+        GLushort* linesIndexBuffer = indices_u16_scratch;
+        if (mode == GL_TRIANGLES) {
+            for (GLsizei i = 0; i + 2 < count; i += 3) {
+                GLushort a = indices_u16[i+0];
+                GLushort b = indices_u16[i+1];
+                GLushort c = indices_u16[i+2];
+                *linesIndexBuffer++ = a; *linesIndexBuffer++ = b;
+                *linesIndexBuffer++ = b; *linesIndexBuffer++ = c;
+                *linesIndexBuffer++ = c; *linesIndexBuffer++ = a;
+            }
+        }
+        indices_u16 = indices_u16_scratch;
+        count = (GLsizei)(linesIndexBuffer - indices_u16_scratch);
+        //mode = GL_LINES; //TODO: add a renderer for lines? would be cleaner...?
+    }
+    if (max <= 255) {
+        static uint8_t* indices_u8_scratch = NULL;
+        static int scratchCapacity = 0;
+        if (scratchCapacity < count) {
+            delete[] indices_u8_scratch;
+            indices_u8_scratch = new uint8_t[count];
+            scratchCapacity = (int)count;
+        }
+        for (GLsizei i = 0; i < count; ++i) {
+            indices_u8_scratch[i] = (uint8_t)indices_u16[i];
+        }
+        CGeomManager& gmanager = pGLContext->GetGeomManager();
+        gmanager.IndexedArraysGeomStage(mode, (int)count, indices_u8_scratch, numVertices);
+    } else {
+        CGeomManager& gmanager = pGLContext->GetGeomManager();
+        gmanager.IndexedArraysGeomStage(mode, (int)count, (const unsigned char*)indices_u16, numVertices);
+    }
 }
 
 /**
@@ -388,6 +479,16 @@ void glColor4f(GLfloat red, GLfloat green, GLfloat blue, GLfloat alpha)
     gmanager.Color(cpu_vec_xyzw(red, green, blue, alpha));
 }
 
+void glColor4ub(GLubyte red, GLubyte green, GLubyte blue, GLubyte alpha)
+{
+    GL_FUNC_DEBUG("%s\n", __FUNCTION__);
+    float r = (float)red/255.0;
+    float b = (float)blue/255.0;
+    float g = (float)green/255.0;
+    float a = (float)alpha/255.0;
+    glColor4f(r,g,b,a);
+}
+
 void glColor4fv(const GLfloat* color)
 {
     GL_FUNC_DEBUG("%s\n", __FUNCTION__);
@@ -438,7 +539,7 @@ void pglDrawIndexedArrays(GLenum primType,
     int numIndices, const unsigned char* indices,
     int numVertices)
 {
-    pGLContext->GetGeomManager().DrawIndexedArrays(primType, numIndices, indices, numVertices);
+    pGLContext->GetGeomManager().IndexedArraysGeomStage(primType, numIndices, indices, numVertices);
 }
 
 /**

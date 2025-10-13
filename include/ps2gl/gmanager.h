@@ -20,6 +20,7 @@
  * constants
  */
 
+enum ColorSrc : uint8_t { kColor_Float = 0, kColor_UByte = 1 }; //TODO: there has to be a cleaner way to do this
 /********************************************
  * CVertArray
  */
@@ -28,6 +29,7 @@ class CVertArray {
     void *Vertices, *Normals, *TexCoords, *Colors;
     bool VerticesAreValid, NormalsAreValid, TexCoordsAreValid, ColorsAreValid;
     char WordsPerVertex, WordsPerNormal, WordsPerTexCoord, WordsPerColor;
+    ColorSrc ColorSrcType;
 
 public:
     CVertArray();
@@ -51,6 +53,8 @@ public:
     inline void SetNormals(void* newPtr) { Normals = newPtr; }
     inline void SetTexCoords(void* newPtr) { TexCoords = newPtr; }
     inline void SetColors(void* newPtr) { Colors = newPtr; }
+    inline ColorSrc GetColorSrcType() const { return ColorSrcType; }
+    inline void SetColorSrc(ColorSrc src) { ColorSrcType = src; }
 
     inline int GetWordsPerVertex() const { return WordsPerVertex; }
     inline int GetWordsPerNormal() const { return WordsPerNormal; }
@@ -111,6 +115,7 @@ protected:
     GLenum Prim;
 
     bool InsideBeginEnd;
+    bool ConstantColor;
 
     bool LastArrayAccessWasIndexed, LastArrayAccessIsValid;
 
@@ -196,8 +201,8 @@ public:
     virtual void TexCoord(float u, float v) = 0;
     virtual void Color(cpu_vec_xyzw color) = 0;
     virtual void EndGeom()                 = 0;
-    virtual void DrawArrays(GLenum mode, int first, int count) = 0;
-    virtual void DrawIndexedArrays(GLenum primType,
+    virtual void LinearArraysGeomStage(GLenum mode, int first, int count) = 0;
+    virtual void IndexedArraysGeomStage(GLenum primType,
         int numIndices, const unsigned char* indices,
         int numVertices)
         = 0;

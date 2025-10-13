@@ -127,6 +127,7 @@ public:
     CImmMaterial& GetImmMaterial() { return ImmMaterial; }
     CDListMaterial& GetDListMaterial() { return DListMaterial; }
     cpu_vec_xyzw GetCurColor() const { return CurColor; }
+    void SetCurColor(cpu_vec_xyzw color);
     GLenum GetColorMaterialMode() const { return ColorMaterialMode; }
     bool GetColorMaterialEnabled() const { return UseColorMaterial; }
 

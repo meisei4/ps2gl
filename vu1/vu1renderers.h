@@ -32,6 +32,10 @@ VU_FUNCTIONS(Fast);
 VU_FUNCTIONS(FastNoLights);
 
 VU_FUNCTIONS(Indexed);
+
+VU_FUNCTIONS(LinearSimplePerVertexColor);
+VU_FUNCTIONS(IndexedSimpleConstantColor);
+VU_FUNCTIONS(IndexedSimplePerVertexColor);
 }
 
 #endif // ps2gl_vu1code_h

@@ -19,6 +19,7 @@
 #include "ps2gl/matrix.h"
 #include "ps2gl/metrics.h"
 #include "ps2gl/texture.h"
+#include "ps2gl/fixed_function.h"
 
 #include "vu1_context.h"
 
@@ -73,17 +74,33 @@ void CBaseRenderer::InitXferBlock(CVifSCDmaPacket& packet,
 
     // get unpack modes/masks
 
-    WordsPerVertex = wordsPerVertex;
+    LaneConfig lanes;
+    lanes.vertices  = (wordsPerVertex == 4) ? QW_XYZW :
+                      (wordsPerVertex == 3) ? QW_XYZ  : QW_NONE;
+    lanes.normals   = (wordsPerNormal == 0) ? QW_NONE :
+                      (wordsPerNormal == 3) ? QW_XYZ  : QW_NONE;
+    lanes.texcoords = (wordsPerTex    == 0) ? QW_NONE :
+                      (wordsPerTex    == 2) ? QW_XY   : QW_NONE;
+    lanes.colors    = (wordsPerColor  == 0) ? QW_NONE :
+                      (wordsPerColor  == 4) ? QW_XYZW : QW_NONE;
+
+    ValidateLaneConfig(&lanes, "InitXferBlock");
+    WordsPerVertex = QWToWords(lanes.vertices);
     GetUnpackAttribs(WordsPerVertex, VertexUnpackMode, VertexUnpackMask);
 
-    WordsPerNormal = (wordsPerNormal > 0) ? wordsPerNormal : 3;
-    GetUnpackAttribs(WordsPerNormal, NormalUnpackMode, NormalUnpackMask);
+    WordsPerNormal   = QWToWords(lanes.normals);
+    if (WordsPerNormal > 0) GetUnpackAttribs(WordsPerNormal,   NormalUnpackMode,   NormalUnpackMask);
 
-    WordsPerTexCoord = (wordsPerTex > 0) ? wordsPerTex : 2;
-    GetUnpackAttribs(WordsPerTexCoord, TexCoordUnpackMode, TexCoordUnpackMask);
+    WordsPerTexCoord = QWToWords(lanes.texcoords);
+    if (WordsPerTexCoord > 0) GetUnpackAttribs(WordsPerTexCoord, TexCoordUnpackMode, TexCoordUnpackMask);
 
-    WordsPerColor = (wordsPerColor > 0) ? wordsPerColor : 3;
-    GetUnpackAttribs(WordsPerColor, ColorUnpackMode, ColorUnpackMask);
+    WordsPerColor = QWToWords(lanes.colors);
+    if (WordsPerColor > 0) GetUnpackAttribs(WordsPerColor, ColorUnpackMode, ColorUnpackMask);
+
+    XferVertices  = LanePresent(lanes.vertices);
+    XferNormals   = LanePresent(lanes.normals);
+    XferTexCoords = LanePresent(lanes.texcoords);
+    XferColors    = LanePresent(lanes.colors);
 
     // set up the row register to expand vectors with fewer than 4 elements
 
@@ -395,7 +412,9 @@ void CBaseRenderer::CacheRendererState()
 {
     XferNormals   = pGLContext->GetImmLighting().GetLightingEnabled();
     XferTexCoords = pGLContext->GetTexManager().GetTexEnabled();
-    XferColors    = pGLContext->GetMaterialManager().GetColorMaterialEnabled();
+    // TODO: after decoupling colors from lights and material, we cannot decide Xfercolor state as a cached state because we dont know if its per vertex or constant here..
+    //  need to figure out how to reintroduce this caching for PVC vs Constant color
+    // XferColors    = pGLContext->GetMaterialManager().GetColorMaterialEnabled();
 }
 
 void CBaseRenderer::Load()

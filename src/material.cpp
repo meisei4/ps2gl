@@ -132,6 +132,10 @@ void CMaterialManager::Color(cpu_vec_xyzw color)
     GLContext.CurMaterialChanged();
 }
 
+void CMaterialManager::SetCurColor(cpu_vec_xyzw color) {
+    CurColor = color;
+}
+
 class CSetUseColorMaterialCmd : public CDListCmd {
     bool UseCM;
 

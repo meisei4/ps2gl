@@ -19,7 +19,6 @@
 #include "ps2gl/matrix.h"
 #include "ps2gl/metrics.h"
 #include "ps2gl/texture.h"
-#include "ps2gl/fixed_function.h"
 
 #include "vu1_context.h"
 

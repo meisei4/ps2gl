@@ -18,6 +18,7 @@
 #include "ps2gl/dlist.h"
 #include "ps2gl/glcontext.h"
 #include "ps2gl/gmanager.h"
+#include "vu1_mem_indexed.h"
 #include "ps2gl/matrix.h"
 
 /********************************************
@@ -167,6 +168,203 @@ void glColorPointer(GLint size, GLenum type,
     vertArray.SetWordsPerColor(size);
 }
 
+static void EnsureU8ScratchCapacity(uint8_t*& indices_u8_scratch, int& scratchCapacity, GLsizei requiredCapacity)
+{
+    if (scratchCapacity < requiredCapacity) {
+        delete[] indices_u8_scratch;
+        indices_u8_scratch = new uint8_t[requiredCapacity];
+        scratchCapacity = (int)requiredCapacity;
+    }
+}
+
+static GLsizei BuildLinesFromSequentialTrianglesU8(uint8_t* dst, GLint first, GLsizei count)
+{
+    uint8_t* p = dst;
+    for (GLsizei i = 0; i + 2 < count; i += 3) {
+        uint8_t a = (uint8_t)(first + i + 0);
+        uint8_t b = (uint8_t)(first + i + 1);
+        uint8_t c = (uint8_t)(first + i + 2);
+        *p++ = a; *p++ = b;
+        *p++ = b; *p++ = c;
+        *p++ = c; *p++ = a;
+    }
+    return (GLsizei)(p - dst);
+}
+
+
+static GLushort MaxIndexU16(const GLushort* indices_u16, GLsizei count)
+{
+    GLushort max = 0;
+    for (GLsizei i = 0; i < count; ++i) {
+        if (indices_u16[i] > max) max = indices_u16[i];
+    }
+    return max;
+}
+
+static void ConvertU16ToU8Scratch(const GLushort* src, GLsizei count, uint8_t*& indices_u8_scratch, int& scratchCapacity)
+{
+    EnsureU8ScratchCapacity(indices_u8_scratch, scratchCapacity, count);
+    for (GLsizei i = 0; i < count; ++i) {
+        indices_u8_scratch[i] = (uint8_t)src[i];
+    }
+}
+
+static void DrawWireframeTrianglesChunkedArrays(GLint first, GLsizei count)
+{
+    CGeomManager& gmanager = pGLContext->GetGeomManager();
+    CVertArray& vertArray  = gmanager.GetVertArray();
+
+    void* vertices   = vertArray.GetVertices();
+    void* normals    = vertArray.GetNormals();
+    void* texcoords  = vertArray.GetTexCoords();
+    void* colors     = vertArray.GetColors();
+
+    const int wordsPerVertex   = vertArray.GetWordsPerVertex();
+    const int wordsPerNormal   = vertArray.GetWordsPerNormal();
+    const int wordsPerTexcoord = vertArray.GetWordsPerTexCoord();
+    const int wordsPerColor    = vertArray.GetWordsPerColor();
+
+    static uint8_t* indices_u8_scratch = NULL;
+    static int scratchCapacity = 0;
+
+    GLsizei remainingVertices = count;
+    GLint baseVertex = first;
+    while (remainingVertices > 0)
+    {
+        GLsizei chunkVertexCount = remainingVertices;
+        const GLsizei maxChunkVerts = (kInputBufSize - 4) / 3 - 3; //TODO: this feels like magic still...?
+        if (chunkVertexCount > maxChunkVerts)
+        {
+            mDebugPrint("Max number of vertices surpassed: [%d], starting chunked vert batch\n", maxChunkVerts);
+            chunkVertexCount = maxChunkVerts;
+        }
+        chunkVertexCount -= (chunkVertexCount % 3);
+        if (chunkVertexCount < 3) break;
+        if (vertices)
+            vertArray.SetVertices((void*)((float*)vertices + (size_t)wordsPerVertex * (size_t)baseVertex));
+
+        if (vertArray.GetNormalsAreValid() && wordsPerNormal == 3)
+            vertArray.SetNormals((void*)((float*)normals + (size_t)wordsPerNormal * (size_t)baseVertex));
+
+        if (vertArray.GetTexCoordsAreValid() && wordsPerTexcoord == 2)
+            vertArray.SetTexCoords((void*)((float*)texcoords + (size_t)wordsPerTexcoord * (size_t)baseVertex));
+
+        if (vertArray.GetColorsAreValid()) {
+            if (vertArray.GetColorSrcType() == kColor_UByte)
+                vertArray.SetColors((void*)((unsigned char*)colors + (size_t)4 * (size_t)baseVertex));
+            else
+                vertArray.SetColors((void*)((float*)colors + (size_t)wordsPerColor * (size_t)baseVertex));
+        }
+        GLsizei triangleCount   = chunkVertexCount / 3;
+        GLsizei lineIndexCount  = triangleCount * 6;
+        EnsureU8ScratchCapacity(indices_u8_scratch, scratchCapacity, lineIndexCount);
+        BuildLinesFromSequentialTrianglesU8(indices_u8_scratch, 0, chunkVertexCount);
+        gmanager.IndexedArraysGeomStage(GL_TRIANGLES, (int)lineIndexCount, indices_u8_scratch, (int)chunkVertexCount);
+        baseVertex += chunkVertexCount;
+        remainingVertices -= chunkVertexCount;
+    }
+    if (vertices)   vertArray.SetVertices(vertices);
+    if (normals)    vertArray.SetNormals(normals);
+    if (texcoords)  vertArray.SetTexCoords(texcoords);
+    if (colors)     vertArray.SetColors(colors);
+}
+
+static void DrawWireframeTrianglesChunkedElements(const GLushort* indices_u16, GLsizei count)
+{
+    CGeomManager& gmanager = pGLContext->GetGeomManager();
+    CVertArray& vertArray  = gmanager.GetVertArray();
+
+    void* vertices   = vertArray.GetVertices();
+    void* normals    = vertArray.GetNormals();
+    void* texcoords  = vertArray.GetTexCoords();
+    void* colors     = vertArray.GetColors();
+
+    const int wordsPerVertex   = vertArray.GetWordsPerVertex();
+    const int wordsPerNormal   = vertArray.GetWordsPerNormal();
+    const int wordsPerTexcoord = vertArray.GetWordsPerTexCoord();
+    const int wordsPerColor    = vertArray.GetWordsPerColor();
+
+    static uint8_t* indices_u8_scratch = NULL;
+    static int scratchCapacity = 0;
+
+    GLushort max = MaxIndexU16(indices_u16, count);
+    const GLsizei maxChunkVerts = (kInputBufSize - 4) / 3 - 3;
+
+    GLushort baseVertex = 0;
+    while (baseVertex <= max) {
+        GLsizei chunkVertexCount = (GLsizei)(max - baseVertex + 1);
+        if (chunkVertexCount > maxChunkVerts) chunkVertexCount = maxChunkVerts;
+        if (chunkVertexCount < 3) { baseVertex += (GLushort)chunkVertexCount; continue; }
+
+        if (vertices)
+            vertArray.SetVertices((void*)((float*)vertices + (size_t)wordsPerVertex * (size_t)baseVertex));
+
+        if (vertArray.GetNormalsAreValid() && wordsPerNormal == 3)
+            vertArray.SetNormals((void*)((float*)normals + (size_t)wordsPerNormal * (size_t)baseVertex));
+
+        if (vertArray.GetTexCoordsAreValid() && wordsPerTexcoord == 2)
+            vertArray.SetTexCoords((void*)((float*)texcoords + (size_t)wordsPerTexcoord * (size_t)baseVertex));
+
+        if (vertArray.GetColorsAreValid()) {
+            if (vertArray.GetColorSrcType() == kColor_UByte)
+                vertArray.SetColors((void*)((unsigned char*)colors + (size_t)4 * (size_t)baseVertex));
+            else
+                vertArray.SetColors((void*)((float*)colors + (size_t)wordsPerColor * (size_t)baseVertex));
+        }
+
+        int trianglesInWindow = 0;
+        for (GLsizei i = 0; i + 2 < count; i += 3) {
+            GLushort a = indices_u16[i+0];
+            GLushort b = indices_u16[i+1];
+            GLushort c = indices_u16[i+2];
+            if (a >= baseVertex && a < baseVertex + chunkVertexCount &&
+                b >= baseVertex && b < baseVertex + chunkVertexCount &&
+                c >= baseVertex && c < baseVertex + chunkVertexCount)
+                trianglesInWindow++;
+        }
+        if (trianglesInWindow == 0) {
+            baseVertex += (GLushort)chunkVertexCount;
+            continue;
+        }
+
+        GLsizei lineIndexCount = trianglesInWindow * 6;
+        EnsureU8ScratchCapacity(indices_u8_scratch, scratchCapacity, lineIndexCount);
+
+        uint8_t* p = indices_u8_scratch;
+        GLushort localMaxUsed = 0;
+
+        for (GLsizei i = 0; i + 2 < count; i += 3) {
+            GLushort a = indices_u16[i+0];
+            GLushort b = indices_u16[i+1];
+            GLushort c = indices_u16[i+2];
+            if (a >= baseVertex && a < baseVertex + chunkVertexCount &&
+                b >= baseVertex && b < baseVertex + chunkVertexCount &&
+                c >= baseVertex && c < baseVertex + chunkVertexCount)
+            {
+                GLushort ra = (GLushort)(a - baseVertex);
+                GLushort rb = (GLushort)(b - baseVertex);
+                GLushort rc = (GLushort)(c - baseVertex);
+                if (ra > localMaxUsed) localMaxUsed = ra;
+                if (rb > localMaxUsed) localMaxUsed = rb;
+                if (rc > localMaxUsed) localMaxUsed = rc;
+
+                *p++ = (uint8_t)ra; *p++ = (uint8_t)rb;
+                *p++ = (uint8_t)rb; *p++ = (uint8_t)rc;
+                *p++ = (uint8_t)rc; *p++ = (uint8_t)ra;
+            }
+        }
+        int numVerticesLocal = (int)localMaxUsed + 1;
+        gmanager.IndexedArraysGeomStage(GL_TRIANGLES, (int)lineIndexCount, indices_u8_scratch, numVerticesLocal);
+
+        baseVertex += (GLushort)chunkVertexCount;
+    }
+    if (vertices)   vertArray.SetVertices(vertices);
+    if (normals)    vertArray.SetNormals(normals);
+    if (texcoords)  vertArray.SetTexCoords(texcoords);
+    if (colors)     vertArray.SetColors(colors);
+}
+
+
 /**
  * The important thing to remember with DrawArrays() is that <b>array data
  * is not copied (mostly)</b>.  Since the only rendering mode supported now is
@@ -183,34 +381,11 @@ void glDrawArrays(GLenum mode, GLint first, GLsizei count)
     GL_FUNC_DEBUG("%s\n", __FUNCTION__);
 
     if (pGLContext->GetImmDrawContext().GetPolygonMode() == GL_LINE && mode == GL_TRIANGLES) {
-        GLushort maxIndex = (GLushort)(first + count - 1);
-        if (maxIndex <= 255) {
-            GLsizei triangleCount   = count / 3;
-            GLsizei lineIndexCount  = triangleCount * 6;
-            static uint8_t* indices_u8_scratch = NULL;
-            static int scratchCapacity = 0;
-            if (scratchCapacity < lineIndexCount) {
-                delete[] indices_u8_scratch;
-                indices_u8_scratch = new uint8_t[lineIndexCount];
-                scratchCapacity = (int)lineIndexCount;
-            }
-            uint8_t* p = indices_u8_scratch;
-            for (GLsizei i = 0; i + 2 < count; i += 3) {
-                uint8_t a = (uint8_t)(first + i + 0);
-                uint8_t b = (uint8_t)(first + i + 1);
-                uint8_t c = (uint8_t)(first + i + 2);
-                *p++ = a; *p++ = b;
-                *p++ = b; *p++ = c;
-                *p++ = c; *p++ = a;
-            }
-            CGeomManager& gmanager = pGLContext->GetGeomManager();
-            gmanager.IndexedArraysGeomStage(GL_TRIANGLES, (int)lineIndexCount, indices_u8_scratch, (int)(maxIndex + 1));
-            return;
-        }
-        mode = GL_LINES;
+        DrawWireframeTrianglesChunkedArrays(first, count);
+    } else {
+        CGeomManager& gmanager = pGLContext->GetGeomManager();
+        gmanager.LinearArraysGeomStage(mode, first, count);
     }
-    CGeomManager& gmanager = pGLContext->GetGeomManager();
-    gmanager.LinearArraysGeomStage(mode, first, count);
 }
 
 /**
@@ -226,51 +401,20 @@ void glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* indic
     }
 
     const GLushort* indices_u16 = (const GLushort*)indices;
-    GLushort max = 0;
 
-    for (GLsizei i = 0; i < count; ++i) {
-        if (indices_u16[i] > max) max = indices_u16[i];
-    }
-
-    const int numVertices = (int)max + 1;
-
-    static GLushort* indices_u16_scratch = NULL;
-    static int scratch16Capacity = 0;
     if (pGLContext->GetImmDrawContext().GetPolygonMode() == GL_LINE && mode == GL_TRIANGLES)
     {
-        int triangleCount = count / 3;
-        int lineCount =  triangleCount * 6;
-        if (scratch16Capacity < lineCount) {
-            delete[] indices_u16_scratch;
-            indices_u16_scratch = new GLushort[lineCount];
-            scratch16Capacity = lineCount;
-        }
-        GLushort* linesIndexBuffer = indices_u16_scratch;
-        if (mode == GL_TRIANGLES) {
-            for (GLsizei i = 0; i + 2 < count; i += 3) {
-                GLushort a = indices_u16[i+0];
-                GLushort b = indices_u16[i+1];
-                GLushort c = indices_u16[i+2];
-                *linesIndexBuffer++ = a; *linesIndexBuffer++ = b;
-                *linesIndexBuffer++ = b; *linesIndexBuffer++ = c;
-                *linesIndexBuffer++ = c; *linesIndexBuffer++ = a;
-            }
-        }
-        indices_u16 = indices_u16_scratch;
-        count = (GLsizei)(linesIndexBuffer - indices_u16_scratch);
-        //mode = GL_LINES; //TODO: add a renderer for lines? would be cleaner...?
+        DrawWireframeTrianglesChunkedElements(indices_u16, count);
+        return;
     }
+
+    GLushort max = MaxIndexU16(indices_u16, count);
+    const int numVertices = (int)max + 1;
+
     if (max <= 255) {
         static uint8_t* indices_u8_scratch = NULL;
         static int scratchCapacity = 0;
-        if (scratchCapacity < count) {
-            delete[] indices_u8_scratch;
-            indices_u8_scratch = new uint8_t[count];
-            scratchCapacity = (int)count;
-        }
-        for (GLsizei i = 0; i < count; ++i) {
-            indices_u8_scratch[i] = (uint8_t)indices_u16[i];
-        }
+        ConvertU16ToU8Scratch(indices_u16, count, indices_u8_scratch, scratchCapacity);
         CGeomManager& gmanager = pGLContext->GetGeomManager();
         gmanager.IndexedArraysGeomStage(mode, (int)count, indices_u8_scratch, numVertices);
     } else {

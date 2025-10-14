@@ -98,12 +98,33 @@ void pglSetDisplayBuffers(int interlaced, pgl_area_handle_t frame0_mem, pgl_area
 /********************************************
  * gl api
  */
+static GLint gUnpackAlignment = 4;
+static GLint gPackAlignment   = 4;
 
 void glPixelStorei(GLenum pname, int param)
 {
     GL_FUNC_DEBUG("%s\n", __FUNCTION__);
 
-    mNotImplemented();
+    switch (pname)
+    {
+    case GL_UNPACK_ALIGNMENT:
+        if (param == 1 || param == 2 || param == 4 || param == 8)
+            gUnpackAlignment = param;
+        else
+            gUnpackAlignment = 4; // default fallback
+        break;
+
+    case GL_PACK_ALIGNMENT:
+        if (param == 1 || param == 2 || param == 4 || param == 8)
+            gPackAlignment = param;
+        else
+            gPackAlignment = 4;
+        break;
+
+    default:
+        mNotImplemented();
+        break;
+    }
 }
 
 void glReadPixels(int x, int y, int width, int height,

@@ -75,12 +75,21 @@ void display(void)                                      // Create The Display Fu
     glRotatef(rquad, 1.0f, 0.0f, 0.0f);                 // Rotate The Quad On The X axis
     glColor3f(0.5f, 0.5f, 1.0f);                        // Set The Color To Blue One Time Only
     //TODO: could introduce quad primitive to new pvc paths, but this demonstrates the old approach
+    // glEnable(GL_COLOR_MATERIAL);
+    // glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+    // glEnable(GL_LIGHTING);
+    // glEnable(GL_LIGHT0);
+    // constexpr float default_normal_direction_alignment[4] = {0.f, 0.f, 1.f, 0.f};
+    // glLightfv(GL_LIGHT0, GL_POSITION, default_normal_direction_alignment); //TODO: AMBIENT DIFFUSE not implemented yet?
     glEnable(GL_COLOR_MATERIAL);
-    glColorMaterial(GL_FRONT_AND_BACK, GL_DIFFUSE);
+    glColorMaterial(GL_FRONT_AND_BACK, GL_AMBIENT_AND_DIFFUSE); // <- NOTE that this is changed
     glEnable(GL_LIGHTING);
     glEnable(GL_LIGHT0);
-    constexpr float default_normal_direction_alignment[4] = {0.f, 0.f, 1.f, 0.f};
-    glLightfv(GL_LIGHT0, GL_POSITION, default_normal_direction_alignment); //TODO: AMBIENT DIFFUSE not implemented yet?
+    const GLfloat color_on[] = {1, 1, 1, 1};
+    const GLfloat color_off[] = {0, 0, 0, 1};
+    glLightfv(GL_LIGHT0, GL_AMBIENT, color_on);
+    glLightfv(GL_LIGHT0, GL_DIFFUSE, color_off);
+    glLightfv(GL_LIGHT0, GL_SPECULAR, color_off);
     glBegin(GL_QUADS);                                  // Draw A Quad
     glColor3f(0.0f, 1.0f, 0.0f);                        // Set The Color To Blue
     glVertex3f(1.0f, 1.0f, -1.0f);                      // Top Right Of The Quad (Top)

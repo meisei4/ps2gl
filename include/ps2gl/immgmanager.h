@@ -8,6 +8,7 @@
 #define ps2gl_immgmanager_h
 
 #include "ps2gl/gmanager.h"
+#include "ps2gl/fixed_function.h"
 
 /********************************************
  * CImmGeomManager - the immediate renderer
@@ -79,6 +80,13 @@ public:
     void IndexedArraysGeomStage(GLenum primType,
         int numIndices, const unsigned char* indices,
         int numVertices);
+    void SetBaseAttributePointers();
+    void SetBaseAttributeValidity();
+    void PrepareColorsPtr(int loopCount, void*& colorsPtr, bool& perVertexColorArrayEnabled);
+    void BuildLaneConfig(LaneConfig* lanes, bool perVertexColorArrayEnabled, const char* callerName);
+    void ApplyLaneWords(const LaneConfig& lanes);
+    void AddAttributeCounts(const LaneConfig& lanes, int count);
+    void SyncPerVertexMaterialAndNotify(const LaneConfig& lanes);
     void Flush();
 };
 

@@ -145,7 +145,7 @@ CRendererManager::CRendererManager(CGLContext& context)
             .Lighting = 0,
             .NumDirLights = k3DirLights,
             .NumPtLights = 0,
-            .Texture = 0,
+            .Texture = 1,
             .Specular = 0,
             .PerVtxMaterial = kDiffuse, //TODO: this is just to allow for only certain targets to get pvc (its a hack to get behavior, clean up next
             .Clipping = kNonClipped | kClipped,

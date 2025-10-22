@@ -23,6 +23,7 @@ kOutputQPerV           .equ 3
     loi                 255.0
     load_mat_emm        constant_color
     load_mat_diff       material_diff, w
+    muli.xyz            constant_color, constant_color, i
     muli.w              constant_color, material_diff, i
     minii               constant_color, constant_color, i
     max                 constant_color, constant_color, vf00

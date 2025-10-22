@@ -29,6 +29,22 @@ kOutputQPerV           .equ 3
     max                 constant_color, constant_color, vf00
     ftoi0               constant_color, constant_color
 
+
+;TODO this is idk 128 with texture without texture 255, but also hardcoded everywhere i need to really pin down the actual expectations
+    ;load_mat_emm        constant_color
+    ;loi                 255.0
+    ;muli.xyz            constant_color, constant_color, i
+    ;max.xyz             constant_color, constant_color, vf00
+    ;ftoi0.xyz           constant_color, constant_color
+
+    ;load_mat_diff       material_diff, w
+    ;loi                 128.0 ;doesnt work
+    ;loi                 255.0 ;doesnt work
+    ;addi.w              constant_color, vf00, i
+    ;muli.w              constant_color, material_diff, i
+    ;max.w               constant_color, constant_color, vf00
+    ;ftoi0.w             constant_color, constant_color
+
     init_constants
 
     sub                 trans[0], vf00, vf00

@@ -55,6 +55,11 @@ main_loop_lid:
 ; Also this should be form a constant, and also it shouldnt need to be loaded in loop
     loi            255.0
     load_mat_diff  vert_color, w
+;TODO: htis stuff idk, its not the approach
+    ;loi            128.0
+    ;load_mat_diff  vert_color, w
+    ;muli.w         vert_color, vert_color, i
+
     muli.w         vert_color, vert_color, i
     minii.w        vert_color, vert_color, i
     ftoi0.w        vert_color, vert_color

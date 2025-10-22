@@ -57,6 +57,10 @@ xform_loop_lid:
     load_pvcolor        vtx_color
     loi                 255.0
     muli.xyz            vtx_color, vtx_color, i
+
+;TODO: this is hard coding the blend maximum... not actualy allowing for blending stuff to have any proper effect i dont think..
+;it is likely not the correct solution i dont think, especially because this is for PVC??? not even TEXTURED?!!
+    loi                 128.0
     addi.w              vtx_color, vf00, i
     max                 vtx_color, vtx_color, vf00
     ftoi0               vtx_color, vtx_color

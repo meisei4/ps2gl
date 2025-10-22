@@ -411,16 +411,11 @@ void glDrawElements(GLenum mode, GLsizei count, GLenum type, const GLvoid* indic
     GLushort max = MaxIndexU16(indices_u16, count);
     const int numVertices = (int)max + 1;
 
-    if (max <= 255) {
-        static uint8_t* indices_u8_scratch = NULL;
-        static int scratchCapacity = 0;
-        ConvertU16ToU8Scratch(indices_u16, count, indices_u8_scratch, scratchCapacity);
-        CGeomManager& gmanager = pGLContext->GetGeomManager();
-        gmanager.IndexedArraysGeomStage(mode, (int)count, indices_u8_scratch, numVertices);
-    } else {
-        CGeomManager& gmanager = pGLContext->GetGeomManager();
-        gmanager.IndexedArraysGeomStage(mode, (int)count, (const unsigned char*)indices_u16, numVertices);
-    }
+    static uint8_t* indices_u8_scratch = NULL;
+    static int scratchCapacity = 0;
+    ConvertU16ToU8Scratch(indices_u16, count, indices_u8_scratch, scratchCapacity);
+    CGeomManager& gmanager = pGLContext->GetGeomManager();
+    gmanager.IndexedArraysGeomStage(mode, (int)count, indices_u8_scratch, numVertices);
 }
 
 /**

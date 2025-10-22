@@ -34,6 +34,7 @@ VU_FUNCTIONS(FastNoLights);
 VU_FUNCTIONS(Indexed);
 
 VU_FUNCTIONS(LinearSimplePerVertexColor);
+VU_FUNCTIONS(LinearSimpleConstantColor);
 VU_FUNCTIONS(IndexedSimpleConstantColor);
 VU_FUNCTIONS(IndexedSimplePerVertexColor);
 }

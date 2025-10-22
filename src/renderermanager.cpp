@@ -110,7 +110,7 @@ CRendererManager::CRendererManager(CGLContext& context)
                 no_reqs,
                 3,
                 3,
-            "indexed, constant color, tri")
+            "indexed, constant color, tri, simple")
         );
     }
     {
@@ -135,7 +135,34 @@ CRendererManager::CRendererManager(CGLContext& context)
                 no_reqs,
                 4,
                 3,
-                "indexed, pvc, tri")
+                "indexed, pvc, tri, simple")
+        );
+    }
+    {
+        CRendererProps capabilities = {
+            .PrimType = kTriangles,
+            .Lighting = 0,
+            .NumDirLights = k3DirLights,
+            .NumPtLights = 0,
+            .Texture = 1,
+            .Specular = 0,
+            .PerVtxMaterial = kNoMaterial, //TODO: this is just to allow for only certain targets to get pvc (its a hack to get behavior, clean up next
+            .Clipping = kNonClipped | kClipped,
+            .CullFace = 0,
+            .TwoSidedLighting = 0,
+            .ArrayAccess = kLinear
+        };
+        RegisterDefaultRenderer(
+            new CLinearRenderer(
+                mVsmAddr(LinearSimpleConstantColor),
+                mVsmSize(LinearSimpleConstantColor),
+                capabilities,
+                no_reqs,
+                3,
+                3,
+                kInputStart,
+                kInputBufSize - kInputStart,
+                "linear, constant color, tri, simple")
         );
     }
     // unlit renderer per vertex color
@@ -163,7 +190,7 @@ CRendererManager::CRendererManager(CGLContext& context)
                 3,
                 kInputStart,
                 kInputBufSize - kInputStart,
-                "linear fast no lights, pvc, tri")
+                "linear, pvc, tri, simple")
         );
     }
     // fast renderer

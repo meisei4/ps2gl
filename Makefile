@@ -51,6 +51,7 @@ RENDERERS = \
 	general \
 	indexed \
 	scei \
+	linear_simple_constant_color \
 	linear_simple_per_vertex_color \
     indexed_simple_constant_color \
 	indexed_simple_per_vertex_color
